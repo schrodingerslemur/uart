@@ -1,325 +1,281 @@
-//`default_nettype none
-module Mux8to1
-  #(parameter WIDTH = 10)
-  (input  logic [WIDTH-1:0]I0, I1, I2, I3, I4, I5, I6, I7,
-          logic [2:0]S,
-   output logic [WIDTH-1:0]Y);
-  always_comb begin
-    case (S)
-      3'd0: Y = I0;
-      3'd1: Y = I1;
-      3'd2: Y = I2;
-      3'd3: Y = I3;
-      3'd4: Y = I4;
-      3'd5: Y = I5;
-      3'd6: Y = I6;
-      3'd7: Y = I7;
-      default: Y = '0;
-    endcase
-  end
-endmodule: Mux8to1
+`default_nettype none
 
-module Mux4to1
-  #(parameter WIDTH = 10)
-  (input  logic [WIDTH-1:0]I0, I1, I2, I3,
-          logic [1:0]S,
-   output logic [WIDTH-1:0]Y);
-  always_comb begin
-    case (S)
-      2'd0: Y = I0;
-      2'd1: Y = I1;
-      2'd2: Y = I2;
-      2'd3: Y = I3;
-      default: Y = '0;
-    endcase
-  end
-endmodule: Mux4to1
+/*
+ * A library of components, usable for many future hardware designs.
+ */
 
-module OffsetCheck
+// A comparator checks if two inputs are equal, bit-for-bit.
+module Comparator
   #(parameter WIDTH=4)
-  (input  logic [WIDTH-1:0] val, delta, low,
-   output logic is_between);
-  
-  logic [WIDTH-1:0] high;
-  logic cout;
+   (output logic             AeqB,
+    input  logic [WIDTH-1:0] A, B);
 
-  Adder #(WIDTH) add1 (.A(low), .B(delta), .sum(high), .cin(1'b0), .cout);
-  RangeCheck #(WIDTH) range1 (.*);
+  MagComp #(WIDTH) mc(.A,
+                      .B,
+                      .AeqB,
+                      .AltB(),
+                      .AgtB()
+                     );
 
-endmodule: OffsetCheck
+endmodule: Comparator
 
-module RangeCheck
-  #(parameter WIDTH=4)
-  (input  logic [WIDTH-1:0] val, high, low,
-   output logic is_between);
+// A Magnitude Comparator does an unsigned comparison of two input values.
+module MagComp
+  #(parameter   WIDTH = 8)
+  (output logic             AltB, AeqB, AgtB,
+   input  logic [WIDTH-1:0] A, B);
 
-  always_comb begin
-    if ((val >= low) && (val <= high))
-      is_between = 1'b1;
+  always_comb
+    if ($isunknown(A) || $isunknown(B))
+      {AeqB, AltB, AgtB} = 3'bxxx;
+    else begin
+      AeqB = (A == B);
+      AltB = (A <  B);
+      AgtB = (A >  B);
+    end
+
+endmodule: MagComp
+
+// An Adder is a combinational sum generator.
+module Adder
+  #(parameter WIDTH=8)
+  (input  logic [WIDTH-1:0] A, B,
+   input  logic             cin,
+   output logic [WIDTH-1:0] sum,
+   output logic             cout);
+
+  always_comb
+    if ($isunknown(A) || $isunknown(B) || $isunknown(cin)) begin
+      cout = 1'bx;
+      sum = 'x;
+      end
     else
-      is_between = 1'b0;
+      {cout, sum} = A + B + cin;
+
+endmodule : Adder
+
+module Subtracter
+  #(parameter WIDTH=8)
+  (input  logic [WIDTH-1:0] A, B,
+   input  logic           bin,
+   output logic [WIDTH-1:0] diff,
+   output logic           bout);
+
+   assign {bout, diff} = A - B - bin;
+
+endmodule : Subtracter
+
+// The Multiplexer chooses one of WIDTH bits
+module Multiplexer
+  #(parameter WIDTH=8)
+  (input  logic [WIDTH-1:0]         I,
+   input  logic [$clog2(WIDTH)-1:0] S,
+   output logic                     Y);
+
+   assign Y = I[S];
+
+endmodule : Multiplexer
+
+// The 2-to-1 Multiplexer chooses one of two multi-bit inputs.
+module Mux2to1
+  #(parameter WIDTH = 8)
+  (input  logic [WIDTH-1:0] I0, I1,
+   input  logic             S,
+   output logic [WIDTH-1:0] Y);
+
+  assign Y = (S) ? I1 : I0;
+
+endmodule : Mux2to1
+
+// The Decoder converts from binary to one-hot codes.
+module Decoder
+  #(parameter WIDTH=8)
+  (input  logic [$clog2(WIDTH)-1:0] I,
+   input  logic                     en,
+   output logic [WIDTH-1:0]         D);
+
+  always_comb begin
+    D = '0;
+    if (en)
+      D = 1'b1 << I;
+      // or D[I] = 1'b1;
   end
 
-endmodule: RangeCheck
+endmodule : Decoder
 
+// A DFlipFlop stores the input bit synchronously with the clock signal.
+// preset and reset are asynchronous inputs.
+module DFlipFlop
+  (input  logic d,
+   input  logic preset_L, reset_L, clock,
+   output logic q);
+
+  always_ff @(posedge clock, negedge preset_L, negedge reset_L)
+    if (~preset_L & reset_L)
+      q <= 1'b1;
+    else if (~reset_L & preset_L)
+      q <= 1'b0;
+    else if (~reset_L & ~preset_L)
+      q <= 1'bX;
+    else
+      q <= d;
+
+endmodule : DFlipFlop
+
+// A Register stores a multi-bit value.
+// Enable has priority over Clear
+module Register
+  #(parameter WIDTH=8)
+  (input  logic [WIDTH-1:0] D,
+   input  logic             en, clear, clock,
+   output logic [WIDTH-1:0] Q);
+
+  always_ff @(posedge clock)
+    if (en)
+      Q <= D;
+    else if (clear)
+      Q <= '0;
+
+endmodule : Register
+
+// A binary up-down counter.
+// Clear has priority over Load, which has priority over Enable
+module Counter
+  #(parameter WIDTH=8)
+  (input  logic [WIDTH-1:0] D,
+   input  logic             en, clear, load, clock, up,
+   output logic [WIDTH-1:0] Q);
+
+  always_ff @(posedge clock)
+    if (clear)
+      Q <= {WIDTH {1'b0}};
+    else if (load)
+      Q <= D;
+    else if (en)
+      if (up)
+        Q <= Q + 1'b1;
+      else
+        Q <= Q - 1'b1;
+
+endmodule : Counter
+
+// A SIPO Shift Register, with controllable shift direction
+// Load has priority over shifting.
+module ShiftRegisterSIPO
+  #(parameter WIDTH=8)
+  (input  logic             serial,
+   input  logic             en, left, clock,
+   output logic [WIDTH-1:0] Q);
+
+  always_ff @(posedge clock)
+    if (en)
+      if (left)
+        Q <= {Q[WIDTH-2:0], serial};
+      else
+        Q <= {serial, Q[WIDTH-1:1]};
+
+endmodule : ShiftRegisterSIPO
+
+// A PIPO Shift Register, with controllable shift direction
+// Load has priority over shifting.
+module ShiftRegisterPIPO
+  #(parameter WIDTH=8)
+  (input  logic [WIDTH-1:0] D,
+   input  logic             en, left, load, clock,
+   output logic [WIDTH-1:0] Q);
+
+  always_ff @(posedge clock)
+    if (load)
+      Q <= D;
+    else if (en)
+      if (left)
+        Q <= {Q[WIDTH-2:0], 1'b0};
+      else
+        Q <= {1'b0, Q[WIDTH-1:1]};
+
+endmodule : ShiftRegisterPIPO
+
+// A BSR shifts bits to the left by a variable amount
+module BarrelShiftRegister
+  #(parameter WIDTH=8)
+  (input  logic [WIDTH-1:0] D,
+   input  logic             en, load, clock,
+   input  logic [      1:0] by,
+   output logic [WIDTH-1:0] Q);
+
+  logic [WIDTH-1:0] shifted;
+  always_comb
+    case (by)
+      default: shifted = Q;
+      2'b01: shifted = {Q[WIDTH-2:0], 1'b0};
+      2'b10: shifted = {Q[WIDTH-3:0], 2'b0};
+      2'b11: shifted = {Q[WIDTH-4:0], 3'b0};
+    endcase
+
+  always_ff @(posedge clock)
+    if (load)
+        Q <= D;
+    else if (en)
+        Q <= shifted;
+
+endmodule : BarrelShiftRegister
+
+// A Synchronizer takes an asynchronous input and changes it to synchronized
+module Synchronizer
+  (input  logic async, clock,
+   output logic sync);
+
+  logic metastable;
+
+  DFlipFlop one(.D(async),
+                .Q(metastable),
+                .clock,
+                .preset_L(1'b1),
+                .reset_L(1'b1)
+               );
+
+  DFlipFlop two(.D(metastable),
+                .Q(sync),
+                .clock,
+                .preset_L(1'b1),
+                .reset_L(1'b1)
+               );
+
+endmodule : Synchronizer
+
+// A BusDriver connects registers to a shared bus (usually data bus)
+module BusDriver
+  #(parameter WIDTH)
+  (input  logic             en,
+   input  logic [WIDTH-1:0] data,
+   output logic [WIDTH-1:0] buff,
+   inout  tri   [WIDTH-1:0] bus);
+
+  assign buff =  bus;
+  assign bus = (en) ? data : 'z;
+
+endmodule : BusDriver
+
+// A memory stores an array of bits
 module Memory
-  #(parameter WIDTH=256, DW=4, AW=$clog2(WIDTH))
-  (input  logic re, we, clock,
-   input  logic [AW-1:0] addr,
-   inout tri [DW-1:0] data);
+ #(parameter DW = 16,
+             W  = 256,
+             AW = $clog2(W))
+  (input logic re, we, clock,
+   input logic [AW-1:0] addr,
+   inout tri   [DW-1:0] data);
 
-  logic [DW-1:0] M[WIDTH];
+  logic [DW-1:0] M[W];
   logic [DW-1:0] rData;
 
-  assign data = (re) ? rData : 'z;
+  assign data = (re) ? rData: 'z;
 
   always_ff @(posedge clock)
     if (we)
       M[addr] <= data;
-    
+
   always_comb
     rData = M[addr];
 
 endmodule: Memory
 
-module BusDriver
-  #(parameter WIDTH = 3)
-  (input  logic en, 
-   input  logic [WIDTH-1:0] data,
-   output logic [WIDTH-1:0] buff,
-   inout  tri   [WIDTH-1:0] bus);
-
-  assign bus = (en) ? data : 'z;
-  assign buff = bus;
-
-endmodule: BusDriver
-
-module BarrelShiftRegister
-  #(parameter WIDTH = 8)
-  (input  logic en, load, clock,
-   input  logic [1:0] by,
-   input  logic [WIDTH-1:0] D,
-   output logic [WIDTH-1:0] Q);
-  
-  int by_int;
-
-  always_ff @(posedge clock)
-    if (en) begin
-      if (load) begin
-        Q <= D;
-      end
-      else begin
-        if (by == 0)
-          Q <= Q;
-        else if (by == 1)
-          Q <= {Q[WIDTH-2:0], 1'b0};
-        else if (by == 2)
-          Q <= {Q[WIDTH-3:0], 2'b0};
-        else // by == 3
-        Q <= {Q[WIDTH-4:0], 3'b0};
-      end
-    end
-endmodule: BarrelShiftRegister
-
-module ShiftRegisterPIPO
-  #(parameter WIDTH = 3)
-  (input  logic en, left, load, clock,
-   input  logic [WIDTH-1:0] D,
-   output logic [WIDTH-1:0] Q);
-
-  always_ff @(posedge clock)
-    if (en) begin
-      if (~load) begin
-        if (left)
-          Q <= {Q[WIDTH-2:0], 1'b0};
-        else
-          Q <= {1'b0, Q[WIDTH-1:1]};
-      end
-      else 
-        Q <= D;
-    end
-
-endmodule: ShiftRegisterPIPO
-
-module ShiftRegisterSIPO
-  #(parameter WIDTH = 3)
-  (input  logic en, left, serial, clock, reset,
-   output logic [WIDTH-1:0] Q);
-  
-  always_ff @(posedge clock)
-    if (reset) begin
-      Q <= '0;
-    end
-    else if (en) begin
-      if (left)
-        Q <= {Q[WIDTH-2:0], serial};
-      else
-        Q <= {serial, Q[WIDTH-1:1]};
-    end
-      
-endmodule: ShiftRegisterSIPO
-
-module Synchronizer 
-  #(parameter WIDTH = 3)
-  (input  logic async, clock,
-   output logic sync);
-  
-  logic inter, reset_L, preset_L;
-
-  assign reset_L = 1'b1;
-  assign preset_L = 1'b1;
-
-  DFlipFlop D1 (.D(async), .Q(inter), .* );
-  DFlipFlop D2 (.D(inter), .Q(sync), .* );
-
-endmodule: Synchronizer
-
-module Counter
-  #(parameter WIDTH = 3)
-  (input  logic en, clear, load, up, clock,
-   input  logic [WIDTH-1:0] D,
-   output logic [WIDTH-1:0] Q);
-
-  always_ff @(posedge clock)
-    if (clear)
-      Q <= '0;
-    else if (load)
-      Q <= D;
-    else if (en)
-      Q <= (up) ? Q+1 : Q-1;
-
-endmodule: Counter
-
-module Register
-  #(parameter WIDTH = 3)
-  (input  logic en, clear, clock,
-   input  logic [WIDTH-1:0] D,
-   output logic [WIDTH-1:0] Q);
-  
-  always_ff @(posedge clock)
-    if (clear)
-      Q <= '0;
-    else if (en)
-      Q <= D;
-
-endmodule: Register
-
-module DFlipFlop
-  (input  logic D, clock, reset_L, preset_L,
-   output logic Q);
-
-  always_ff @(posedge clock, negedge reset_L, negedge preset_L)
-    if (~reset_L)
-      Q <= 1'b0;
-    else if (~preset_L)
-      Q <= 1'b1;
-    else
-      Q <= D;
-
-endmodule: DFlipFlop
-
-module Adder
-  #(parameter WIDTH = 8)
-  (input  logic [WIDTH-1:0] A, B, 
-   input  logic cin,
-   output logic [WIDTH-1:0] sum,
-   output logic cout);
-  
-  logic [WIDTH:0] full_sum;
-  
-  always_comb begin
-    full_sum = A + B + cin;
-    sum = full_sum[WIDTH-1:0];
-    cout = full_sum[WIDTH];
-  end 
-
-endmodule: Adder
-
-module Subtracter
-  #(parameter WIDTH = 8)
-  (input  logic [WIDTH-1:0] A, B, 
-   input  logic bin,
-   output logic [WIDTH-1:0] diff,
-   output logic bout);
-  
-  logic [WIDTH:0] full_diff;
-  
-  always_comb begin
-    full_diff = A - B - bin;
-    diff = full_diff[WIDTH-1:0];
-    bout = full_diff[WIDTH];
-  end
-
-endmodule: Subtracter
-
-module Decoder
-  #(parameter WIDTH = 8)
-  (input  logic [$clog2(WIDTH)-1:0]I, 
-          logic en,
-   output logic [WIDTH-1:0]D);
-
-  always_comb begin
-    D = '0;
-    if (en)
-      D[I] = 1'b1;
-  end
-
-endmodule: Decoder
-
-module Multiplexer
-  #(parameter WIDTH = 8)
-  (input  logic [WIDTH-1:0]I, 
-          logic [$clog2(WIDTH)-1:0]S,
-   output logic Y);
-
-  always_comb begin
-    Y = I[S];
-  end
-
-endmodule: Multiplexer
-
-module Mux2to1
-  #(parameter WIDTH = 8)
-  (input  logic [WIDTH-1:0]I0, 
-          logic [WIDTH-1:0]I1, 
-          logic S,
-   output logic [WIDTH-1:0]Y);
-
-  always_comb begin
-    Y = S ? I1 : I0;
-  end
-
-endmodule: Mux2to1
-
-module MagComp
-  #(parameter WIDTH = 8)
-  (input  logic [WIDTH-1:0]A, [WIDTH-1:0]B,
-   output logic AltB, AeqB, AgtB);
-  
-  always_comb begin
-    AltB = 0;
-    AeqB = 0;
-    AgtB = 0;
-    if (A < B) 
-      AltB = 1;
-    else if (A == B)
-      AeqB = 1;
-    else
-      AgtB = 1;
-  end
-
-endmodule: MagComp
-
-module Comparator
-  #(parameter WIDTH = 4)
-  (input  logic [WIDTH-1:0]A, [WIDTH-1:0]B,
-   output logic AeqB);
-
-   always_comb begin
-    if (A==B)
-      AeqB = 1;
-    else
-      AeqB = 0;
-   end
-
-endmodule: Comparator
