@@ -2,7 +2,7 @@ module uart #(
     parameter CLK_FREQ = 100_000_000,
     parameter BAUD     = 115200
 )(
-    input  logic        clk,
+    input  logic        clock,
     input  logic        rst,
 
     // TX user interface
@@ -21,8 +21,9 @@ module uart #(
   // 8 data bits, no parity, 1 stop bit
 
   // receiving
-  logic rx_en, rx_rst, rx_count, 
+  logic rx_en, rx_rst,
         rx_count_up, rx_count_clr;
+  logic [3:0] rx_count;
 
   rx_datapath rx_dp (.*);
   rx_control rx_c (.*);
@@ -32,11 +33,15 @@ endmodule: uart
 module rx_control
   (input  logic rx, clock, rst,
    input  logic [3:0] rx_count,
-   output logic rx_en, rx_valid, rx_rst
+   output logic rx_en, rx_valid, rx_rst,
                 rx_count_up, rx_count_clr
   );
 
-  enum logic [1:0] {};
+  enum logic [1:0] {
+    IDLE,
+    START,
+    DATA
+  } state, nextState;
 
   // states
   // 1. Waiting for start bit,
@@ -57,7 +62,7 @@ module rx_datapath
   logic left;
   assign left = 1'b0; // change if required
 
-  ShiftRegisterSIPO data #(8) (
+  ShiftRegisterSIPO #(8) data (
     .en(rx_en),
     .serial(rx), // rx_in
     .Q(rx_data),
@@ -69,7 +74,7 @@ module rx_datapath
   logic up, load;
   assign {up, load} = {1'b1, 1'b0};
 
-  Counter count #(4) (
+  Counter #(4) count (
     .en(rx_count_up),
     .clear(rx_count_clr),
     .up,

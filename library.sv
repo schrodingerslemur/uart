@@ -1,4 +1,5 @@
 `default_nettype none
+/* verilator lint_off PINMISSING */
 
 /*
  * A library of components, usable for many future hardware designs.
@@ -164,11 +165,13 @@ endmodule : Counter
 module ShiftRegisterSIPO
   #(parameter WIDTH=8)
   (input  logic             serial,
-   input  logic             en, left, clock,
+   input  logic             en, left, clock, reset,
    output logic [WIDTH-1:0] Q);
 
   always_ff @(posedge clock)
-    if (en)
+    if (reset) 
+      Q <= '0;
+    else if (en)
       if (left)
         Q <= {Q[WIDTH-2:0], serial};
       else
