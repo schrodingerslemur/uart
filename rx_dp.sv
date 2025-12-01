@@ -16,6 +16,12 @@ module rx_datapath #(
 
   localparam int CLKS_PER_SAMPLE = CLK_FREQ / (BAUD_RATE * OVERSAMPLE);
 
+  // Control points
+  assign {clk_en, clk_clr} = cPts.clk_ctrl;
+  assign {sample_en, sample_clr} = cPts.sample_ctrl;
+  assign {bit_en, bit_clr} = cPts.bit_ctrl;
+  assign {data_en, data_clr} = cPts.data_ctrl;
+
   // Counter for clk_count
   Counter #($clog2(CLKS_PER_SAMPLE)) (
     .D(),
