@@ -11,6 +11,7 @@ module rx_datapath #(
   output logic [DATA_WIDTH-1:0] data_out,
   output logic [$clog2(CLKS_PER_SAMPLE)-1:0] clk_count,
   output logic [$clog2(OVERSAMPLE)-1:0] sample_count,
+  output logic [$clog2(DATA_WIDTH)-1:0] bit_count,
   output logic sample, midbit
 );
 
