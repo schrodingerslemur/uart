@@ -12,7 +12,7 @@ module rx_datapath #(
   output logic [$clog2(CLKS_PER_SAMPLE)-1:0] clk_count,
   output logic [$clog2(OVERSAMPLE)-1:0] sample_count,
   output logic [$clog2(DATA_WIDTH)-1:0] bit_count,
-  output logic sample, mid_bit
+  output logic sample, mid_bit, full_bit, done
 );
 
   localparam int CLKS_PER_SAMPLE = CLK_FREQ / (BAUD_RATE * OVERSAMPLE);
@@ -82,6 +82,12 @@ module rx_datapath #(
 
   assign mid_bit =
       (sample_count == SAMPLE_CNT_W'((OVERSAMPLE/2) - 1));
+  
+  assign full_bit =
+      (sample_count == SAMPLE_CNT_W'(OVERSAMPLE - 1));
+
+  assign done =
+      (bit_count == $clog2(DATA_WIDTH)'(DATA_WIDTH - 1));
 
 
 endmodule: rx_datapath
