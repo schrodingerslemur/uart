@@ -10,8 +10,6 @@ module rx_fsm (
     IDLE, START, START_BUF, DATA, STOP
   } state, nextState;
 
-  logic receiving;
-
   // Control points: cPts, receiving
   // Status points: sample, mid_bit, full_bit, done
   
@@ -170,10 +168,9 @@ module rx_fsm (
         cPts.sample_ctrl = CLR;
         nextState = IDLE;
       end
-      
+
     endcase
   end
-
 
   always_ff @(posedge clock, posedge reset)
     if (reset) 
