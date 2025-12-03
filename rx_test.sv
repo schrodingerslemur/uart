@@ -15,10 +15,6 @@ module rx_test();
   uart_rx DUT (
     .clock     (clock),
     .rst       (rst),
-    .tx_data   (tx_data),
-    .tx_send   (tx_send),
-    .tx_busy   (tx_busy),
-    .tx        (tx),
     .rx        (rx),
     .rx_data   (rx_data),
     .rx_valid  (rx_valid)
