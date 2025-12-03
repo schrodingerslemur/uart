@@ -14,7 +14,7 @@ module rx_test();
   // Instantiate UART DUT
   uart_rx DUT (
     .clock     (clock),
-    .rst       (rst),
+    .reset       (rst),
     .rx        (rx),
     .rx_data   (rx_data),
     .rx_valid  (rx_valid)
