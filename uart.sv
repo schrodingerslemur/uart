@@ -7,12 +7,12 @@ module uart #(
     input  logic        rst,
 
     // TX user interface
-    input  logic [7:0]  tx_data,
+    input  logic [DATA_BITS-1:0]  tx_data,
     input  logic        tx_send,
     output logic        tx_busy,
 
     // RX user interface
-    output logic [7:0]  rx_data,
+    output logic [DATA_BITS-1:0]  rx_data,
     output logic        rx_valid,
 
     // UART physical pins
