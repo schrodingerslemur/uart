@@ -24,6 +24,11 @@ module uart_tx #(
     logic TX_COMPLETE;
     assign TX_COMPLETE = (bit_count == DATA_BITS-1);
 
+    logic [DATA_BITS-1:0] tx_shift_reg;
+
+    // Default output
+    assign tx_busy = (state != IDLE);
+
     // States
     typedef enum logic [1:0] {
         IDLE,
@@ -36,7 +41,10 @@ module uart_tx #(
     // Output and next state logic
     always_ff @(posedge clock, posedge reset) begin
         if (reset) begin
-            tx_busy <= 0;
+            clock_count <= 0;
+            bit_count <= 0;
+            tx_shift_reg <= '0;
+            tx <= 1;
             state <= IDLE;
         end
         else begin
@@ -44,18 +52,17 @@ module uart_tx #(
                 IDLE: begin
                     clock_count <= 0;
                     bit_count <= 0;
-                    tx_busy <= 0;
                     tx <= 1;
-                    if (tx_send) 
+                    if (tx_send) begin
+                        tx_shift_reg <= tx_data;
                         state <= START;
+                    end
                     else
                         state <= IDLE;
                 end
 
                 START: begin
-                    tx_busy <= 1;
                     tx <= 0;
-                    bit_count <= 0;
                     if (FULL_BIT) begin
                         clock_count <= 0;
                         state <= DATA;
@@ -67,10 +74,10 @@ module uart_tx #(
                 end
 
                 DATA: begin
-                    tx_busy <= 1;
+                    tx <= tx_shift_reg[0];
                     if (FULL_BIT) begin
+                        tx_shift_reg <= {1'b0, tx_shift_reg[DATA_BITS-1:1]};
                         clock_count <= 0;
-                        tx <= tx_data[bit_count];
 
                         if (TX_COMPLETE) begin
                             state <= STOP;
@@ -87,13 +94,12 @@ module uart_tx #(
                 end
 
                 STOP: begin
-                    tx_busy <= 1;
+                    tx <= 1;
+                    
                     if (FULL_BIT) begin
-                        tx <= 1;
                         state <= IDLE;
                     end
                     else begin
-                        tx <= 1;
                         clock_count <= clock_count + 1;
                         state <= STOP;
                     end
@@ -106,3 +112,8 @@ module uart_tx #(
 
 
 endmodule: uart_tx
+
+// 0x55 = 01010101
+// 0x2a = 00101010
+// 0xaa = 10101010
+// 0xab = 10101011
