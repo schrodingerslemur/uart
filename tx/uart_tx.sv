@@ -93,6 +93,7 @@ module uart_tx #(
                         state <= IDLE;
                     end
                     else begin
+                        tx <= 1;
                         clock_count <= clock_count + 1;
                         state <= STOP;
                     end
