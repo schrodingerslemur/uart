@@ -40,8 +40,9 @@ module uart_full_tb;
 
   // Clock generation
   initial begin
-    $monitor("Time: %0t | reset=%b | tx_send=%b | tx_busy=%b | rx_valid=%b | tx_data=0x%0h | rx_data=0x%0h | tx_state=%s | rx_state=%s", 
-              $time, reset, tx_send, tx_busy,  rx_valid, tx_data, rx_data, dut.tx_inst.state.name() , dut.rx_inst.state.name() );
+    $monitor("rx_valid=%b rx_data=0x%0h", rx_valid, rx_data);
+    // $monitor("Time: %0t | reset=%b | tx_send=%b | tx_busy=%b | rx_valid=%b | tx_data=0x%0h | rx_data=0x%0h | tx_state=%s | rx_state=%s", 
+            //   $time, reset, tx_send, tx_busy,  rx_valid, tx_data, rx_data, dut.tx_inst.state.name() , dut.rx_inst.state.name() );
     clock = 0;
     forever #(CLK_PERIOD/2) clock = ~clock;
   end
@@ -59,12 +60,14 @@ module uart_full_tb;
       // Wait for TX to finish
       $display("Sending byte: 0x%0h", b);
       wait (tx_busy);
+      // Wait for RX to assert valid
+      $display("Waiting for RX valid...");
+      wait (rx_valid == 1);
       $display("TX busy...");
       wait (!tx_busy);
 
-      // Wait for RX to assert valid
-      $display("Waiting for RX valid...");
-      wait (rx_valid);
+
+
 
       $display("Received byte: 0x%0h", rx_data);
 
