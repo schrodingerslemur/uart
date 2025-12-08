@@ -21,5 +21,19 @@ module uart #(
 );
   // 8 data bits, no parity, 1 stop bit
 
+  uart_rx #(
+    .BAUD_RATE   (BAUD_RATE),
+    .CLOCK_FREQ  (CLOCK_FREQ),
+    .DATA_BITS   (DATA_BITS)
+  )
+  rx_inst (.*);
+
+  uart_tx #(
+    .BAUD_RATE   (BAUD_RATE),
+    .CLOCK_FREQ  (CLOCK_FREQ),
+    .DATA_BITS   (DATA_BITS)
+  ) 
+  tx_inst (.*);
+
 endmodule: uart
 
