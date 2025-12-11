@@ -6,7 +6,7 @@ Customizable parameters:
 2) Baud rate
 3) Number of data bits
 
-The implementation assumes no parity bit, a logic-low start bit, and logic-high start bit.
+The implementation assumes no parity bit, a logic-low start bit, and logic-high stop bit.
 
 ## Usage
 Instantiate `uart` module using following description: 
