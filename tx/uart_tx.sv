@@ -1,7 +1,7 @@
 module uart_tx #(
-    parameter BAUD_RATE = 9600,
-    parameter CLOCK_FREQ = 50000000,
-    parameter DATA_BITS = 8
+    parameter int BAUD_RATE = 9600,
+    parameter int CLOCK_FREQ = 50000000,
+    parameter int DATA_BITS = 8
 )
 (
     input  logic clock, reset,
@@ -9,7 +9,7 @@ module uart_tx #(
     input  logic tx_send,
     output logic tx_busy,
     output logic tx
-);  
+);
 
     // Local parameters
     localparam int BIT_CYCLES = CLOCK_FREQ / BAUD_RATE;
@@ -95,7 +95,7 @@ module uart_tx #(
 
                 STOP: begin
                     tx <= 1;
-                    
+
                     if (FULL_BIT) begin
                         state <= IDLE;
                     end
@@ -104,11 +104,10 @@ module uart_tx #(
                         state <= STOP;
                     end
                 end
+
+                default: state <= IDLE;
             endcase
         end
-        
     end
-
-
 
 endmodule: uart_tx
